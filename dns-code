@@ -1,0 +1,54 @@
+addEventListener('fetch', (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const url = new URL(request.url);
+
+  // Redireciona se o hostname for 'doh.illuminat.org'
+  if (url.hostname === 'doh.illuminat.org') {
+    return Response.redirect('https://illuminat.org', 301); // Redirecionamento permanente
+  }
+
+  // Processa consultas DNS no endpoint '/dns-query'
+  if (url.pathname.endsWith('/dns-query')) {
+    try {
+      const query = await request.arrayBuffer(); // Captura o corpo da requisição
+      const dnsResponse = await queryDns(query); // Consulta o servidor DNS
+
+      return new Response(dnsResponse, {
+        headers: { 'Content-Type': 'application/dns-message' },
+      });
+    } catch (err) {
+      console.error('Erro ao processar a consulta DNS:', err);
+      return new Response('Erro ao processar a consulta DNS', { status: 500 });
+    }
+  } else {
+    return new Response('🚀 Tudo pronto! Nosso servidores de segurança está funcionando perfeitamente', { status: 404 });
+  }
+}
+
+// Lista de servidores DNS DoH
+const dnsServers = [
+  'https://dnslow.me/dns-query',
+  'https://dns.adguard.com/dns-query',
+  'https://family.adguard-dns.com/dns-query',
+];
+
+// Função que escolhe um servidor DNS aleatório e processa a consulta
+async function queryDns(query) {
+  const randomServer = dnsServers[Math.floor(Math.random() * dnsServers.length)]; // Seleção aleatória
+  const response = await fetch(randomServer, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/dns-message',
+    },
+    body: query,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao consultar o servidor DNS: ${randomServer}`);
+  }
+
+  return response.arrayBuffer(); // Retorna o conteúdo da resposta DNS
+}
